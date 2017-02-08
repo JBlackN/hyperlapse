@@ -1,3 +1,4 @@
+# frozen_string_literal: false
 module Hyperlapse
   class PathConfig
     def initialize(id, path = nil)
@@ -23,11 +24,7 @@ module Hyperlapse
       if options.empty?
         update_config_interactive
       else
-        @config[:limit] = options[:limit].to_i unless options[:limit].nil?
-        @config[:fps] = options[:fps].to_i unless options[:fps].nil?
-        @config[:step] = (@config[:waypoints].length - 1) /
-          (@config[:limit] - 1).to_f
-        @config[:step] = [@config[:step], 1.0].max
+        update_config_noninteractive(options)
       end
 
       save_config
@@ -35,32 +32,49 @@ module Hyperlapse
 
     private
 
+    # Create
+
     def create_config(path)
-      path[:fps] = Hyperlapse::FPS
-      path[:limit] = Hyperlapse::API_LIMIT
-      path[:step] = (path[:waypoints].length - 1) / (path[:limit] - 1).to_f
-      path[:step] = [path[:step], 1.0].max
-
-      app_dir = Hyperlapse::APP_DIR
-      path_dir = File.join(app_dir, path[:id])
-      return if Dir.exist?(path_dir)
-
-      Dir.mkdir(path_dir)
-      Dir.mkdir(File.join(path_dir, 'pics'))
-      Dir.mkdir(File.join(path_dir, 'maps'))
-      Dir.mkdir(File.join(path_dir, 'empty'))
-      Dir.mkdir(File.join(path_dir, 'output'))
-
-      workplace_dir = File.join(path_dir, 'workplace')
-      Dir.mkdir(workplace_dir)
-      Dir.mkdir(File.join(workplace_dir, 'pics'))
-      Dir.mkdir(File.join(workplace_dir, 'maps'))
-      Dir.mkdir(File.join(workplace_dir, 'composite'))
+      path = configure_path(path)
+      path_dir = create_path_dir(path)
+      create_path_dir_tree(path_dir)
 
       File.open(File.join(path_dir, 'config.json'), 'w+') do |file|
         file.write(JSON.pretty_generate(path))
       end
     end
+
+    def configure_path(path)
+      path[:fps] = Hyperlapse::FPS
+      path[:limit] = Hyperlapse::API_LIMIT
+      path[:step] = (path[:waypoints].length - 1) / (path[:limit] - 1).to_f
+      path[:step] = [path[:step], 1.0].max
+    end
+
+    def create_path_dir(path)
+      path_dir = File.join(Hyperlapse::APP_DIR, path[:id])
+      return if Dir.exist?(path_dir)
+      Dir.mkdir(path_dir)
+      path_dir
+    end
+
+    def create_path_dir_tree(path_dir)
+      Dir.mkdir(File.join(path_dir, 'pics'))
+      Dir.mkdir(File.join(path_dir, 'maps'))
+      Dir.mkdir(File.join(path_dir, 'empty'))
+      Dir.mkdir(File.join(path_dir, 'output'))
+
+      create_workplace_dir_tree(File.join(path_dir, 'workplace'))
+    end
+
+    def create_workplace_dir_tree(workplace_dir)
+      Dir.mkdir(workplace_dir)
+      Dir.mkdir(File.join(workplace_dir, 'pics'))
+      Dir.mkdir(File.join(workplace_dir, 'maps'))
+      Dir.mkdir(File.join(workplace_dir, 'composite'))
+    end
+
+    # Load
 
     def load_config(id)
       if Dir.entries(Hyperlapse::APP_DIR).length == 2
@@ -68,14 +82,12 @@ module Hyperlapse
       elsif id.nil?
         load_config_interactive
       else
-        @id = id
-        config_file = File.join(Hyperlapse::APP_DIR, @id, 'config.json')
-        @config = JSON.parse(File.read(config_file), symbolize_names: true)
+        load_config_noninteractive(id)
       end
     end
 
     def load_config_interactive
-      ids = get_available_paths
+      ids = available_paths
       print_available_paths(ids)
       response = ask_user_which_path(ids)
 
@@ -83,7 +95,13 @@ module Hyperlapse
       load_config(ids[response.to_i])
     end
 
-    def get_available_paths
+    def load_config_noninteractive(id)
+      @id = id
+      config_file = File.join(Hyperlapse::APP_DIR, @id, 'config.json')
+      @config = JSON.parse(File.read(config_file), symbolize_names: true)
+    end
+
+    def available_paths
       Dir.entries(Hyperlapse::APP_DIR).select do |entry|
         entry_path = File.join(Hyperlapse::APP_DIR, entry)
         File.directory?(entry_path) && !(entry == '.' || entry == '..')
@@ -102,8 +120,8 @@ module Hyperlapse
       responses = ['q'] + (0...path_ids.length).to_a.map(&:to_s)
       response = nil
 
-      while !(responses.include?(response)) do
-        print "Which one to use (#{0}-#{path_ids.length - 1} or 'q')? "
+      until responses.include?(response)
+        print "Which one to use (0-#{path_ids.length - 1} or 'q')? "
         response = STDIN.gets.chomp
       end
 
@@ -122,6 +140,8 @@ module Hyperlapse
       @maps_scale_dir = File.join(@workplace_dir, 'maps')
       @composite_dir = File.join(@workplace_dir, 'composite')
     end
+
+    # Print
 
     def print_header
       header = <<~END
@@ -169,58 +189,84 @@ module Hyperlapse
       end
     end
 
+    # Update
+
     def update_config_interactive
       frames_all = @config[:waypoints].length
-      frames_used = [@config[:limit], frames_all].min
-
-      if frames_all > Hyperlapse::API_LIMIT
-        download_days = (frames_all.to_f / Hyperlapse::API_LIMIT).ceil
-        message_p1 = <<~END
-          Downloading all #{frames_all} frames (covering every available
-          waypoint) would take #{download_days} days
-        END
-        message_p2 = <<~END
-          (due to daily Google API limit of #{Hyperlapse::API_LIMIT}
-          requests).
-        END
-
-        puts message_p1.gsub("\n", ' ')
-        puts message_p2.gsub("\n", ' ')
-
-        response = nil
-        while !(['y', 'n'].include?(response)) do
-          print 'Do you want the hyperlapse today? (y/n) '
-          response = STDIN.gets.chomp
-        end
-
-        if response == 'y'
-          @config[:limit] = Hyperlapse::API_LIMIT
-        else
-          @config[:limit] = frames_used = frames_all
-        end
-      end
+      update_limit_i(frames_all) if frames_all > Hyperlapse::API_LIMIT
 
       frames_used = [@config[:limit], frames_all].min
-      frame_rates = [5, 10, 15, 20, 24, 25, 30, 48, 60, 120]
+      update_fps_i(frames_all, frames_used)
+    end
 
-      puts
-      frame_rates.each_with_index do |fps, i|
-        video_length = format_video_length(frames_used / fps.to_f)
-        message = <<~END
-          (#{i}): #{fps} fps, #{frames_used} frames,
-          resulting video length: #{video_length}
-        END
-        puts message.gsub("\n", ' ')
-      end
-      puts
+    def update_limit_i(frames_all)
+      download_days = (frames_all.to_f / Hyperlapse::API_LIMIT).ceil
+      print_limit_message(frames_all, download_days)
+      response = ask_user_if_today
 
+      @config[:limit] = response == 'y' ? Hyperlapse::API_LIMIT : frames_all
+    end
+
+    def print_limit_message(frames_all, download_days)
+      puts <<~END.tr("\n", ' ')
+        Downloading all #{frames_all} frames (covering every available
+        waypoint) would take #{download_days} days
+      END
+
+      puts <<~END.tr("\n", ' ')
+        (due to daily Google API limit of #{Hyperlapse::API_LIMIT}
+        requests).
+      END
+    end
+
+    def ask_user_if_today
       response = nil
-      while !((0..9).to_a.map(&:to_s).include?(response)) do
-        print 'Choose desired configuration (0-9): '
+      until %w(y n).include?(response)
+        print 'Do you want the hyperlapse today? (y/n) '
         response = STDIN.gets.chomp
       end
 
+      response
+    end
+
+    def update_fps_i(frames_all, frames_used)
+      frame_rates = [1, 5, 10, 15, 20, 24, 25, 30, 48, 60, 120]
+      print_fps_options(frame_rates, frames_used)
+      response = ask_user_which_fps(frame_rates)
+
       @config[:fps] = frame_rates[response.to_i]
+      update_step(frames_all)
+    end
+
+    def print_fps_options(frame_rates, frames_used)
+      puts
+      frame_rates.each_with_index do |fps, i|
+        video_length = format_video_length(frames_used / fps.to_f)
+        puts <<~END.tr("\n", ' ')
+          (#{i}): #{fps} fps, #{frames_used} frames,
+          resulting video length: #{video_length}
+        END
+      end
+      puts
+    end
+
+    def ask_user_which_fps(frame_rates)
+      response = nil
+      until (0...frame_rates.length).to_a.map(&:to_s).include?(response)
+        print "Choose desired configuration (0-#{frame_rates.length - 1}): "
+        response = STDIN.gets.chomp
+      end
+
+      response
+    end
+
+    def update_config_noninteractive(options)
+      @config[:limit] = options[:limit].to_i unless options[:limit].nil?
+      @config[:fps] = options[:fps].to_i unless options[:fps].nil?
+      update_step(@config[:waypoints].length)
+    end
+
+    def update_step(frames_all)
       @config[:step] = (frames_all - 1) / (@config[:limit] - 1).to_f
       @config[:step] = [@config[:step], 1.0].max
     end
@@ -230,6 +276,8 @@ module Hyperlapse
         file.write(JSON.pretty_generate(@config))
       end
     end
+
+    # Errors
 
     def no_paths_available
       fail 'No paths available.' # TODO: Test

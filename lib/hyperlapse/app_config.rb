@@ -7,13 +7,12 @@ module Hyperlapse
     def create
       create_app_dir
       create_config
-      puts 'Don\'t forget to set your Google API key (see README).'
+      puts 'Don\'t forget to set your Google API key (see README).' # FIXME
     end
 
     def check
-      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
-
       app_dir_exists = Dir.exist?(Hyperlapse::APP_DIR)
+      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
       config_file_exists = File.file?(config_file)
 
       create unless app_dir_exists && config_file_exists
@@ -25,10 +24,10 @@ module Hyperlapse
       !app_config['downloader']['key'].empty?
     end
 
-    def set_api_key(key)
+    def change_api_key(new_key)
       config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
       app_config = JSON.parse(File.read(config_file))
-      app_config['downloader']['key'] = key
+      app_config['downloader']['key'] = new_key
 
       save(app_config, config_file)
     end
@@ -64,7 +63,7 @@ module Hyperlapse
         pics_path: '/maps/api/streetview',
         maps_path: '/maps/api/staticmap',
         key: '',
-        daily_limit: 25000,
+        daily_limit: 25_000,
         fov: 110
       }
     end
@@ -90,7 +89,6 @@ module Hyperlapse
   end
 
   APP_DIR = File.join(Dir.home, '.hyperlapse')
-
   Hyperlapse::AppConfig.check
 
   ID_ALG = Hyperlapse::AppConfig.load('parser', 'id_alg')
@@ -109,4 +107,6 @@ module Hyperlapse
   FPS = Hyperlapse::AppConfig.load('generator', 'fps')
   MAP_POS = Hyperlapse::AppConfig.load('generator', 'map_position')
   MAP_SCALE = Hyperlapse::AppConfig.load('generator', 'map_scale')
+
+  Float.include CoreExtensions::Float::Trigonometry
 end

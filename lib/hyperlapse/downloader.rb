@@ -1,3 +1,4 @@
+# frozen_string_literal: false
 require 'json'
 require 'net/http'
 require 'openssl'
@@ -23,7 +24,7 @@ module Hyperlapse
     def determine_used_frames
       @frames = []
       i = 0.0
-      while true do
+      loop do
         @frames << i.round
         i += @config[:step]
         break if i > @config[:waypoints].length - 1
@@ -65,18 +66,16 @@ module Hyperlapse
     end
 
     def download_pic(waypoint, pic_file)
-      unless File.file?(pic_file)
-        File.open(pic_file, 'wb') do |f|
-          f.write open(street_view_uri(waypoint)).read
-        end
+      return if File.file?(pic_file)
+      File.open(pic_file, 'wb') do |f|
+        f.write open(street_view_uri(waypoint)).read
       end
     end
 
     def download_map(waypoint, map_file)
-      unless File.file?(map_file)
-        File.open(map_file, 'wb') do |f|
-          f.write open(map_uri(waypoint)).read
-        end
+      return if File.file?(map_file)
+      File.open(map_file, 'wb') do |f|
+        f.write open(map_uri(waypoint)).read
       end
     end
 
@@ -84,9 +83,9 @@ module Hyperlapse
       path = <<~END
         #{Hyperlapse::API_METADATA_PATH}
         ?size=640x360
-        &location=#{waypoint[:lat].to_s},#{waypoint[:long].to_s}
+        &location=#{waypoint[:lat]},#{waypoint[:long]}
         &fov=#{Hyperlapse::FOV}
-        &heading=#{waypoint[:head].to_s}
+        &heading=#{waypoint[:head]}
         &pitch=0
         &key=#{Hyperlapse::API_KEY}
       END
@@ -98,9 +97,9 @@ module Hyperlapse
       uri = <<~END
         http://#{Hyperlapse::API_HOST}#{Hyperlapse::API_PICS_PATH}
         ?size=640x360
-        &location=#{waypoint[:lat].to_s},#{waypoint[:long].to_s}
+        &location=#{waypoint[:lat]},#{waypoint[:long]}
         &fov=#{Hyperlapse::FOV}
-        &heading=#{waypoint[:head].to_s}
+        &heading=#{waypoint[:head]}
         &pitch=0
         &key=#{Hyperlapse::API_KEY}
       END
@@ -111,13 +110,13 @@ module Hyperlapse
     def map_uri(waypoint)
       uri = <<~END
         http://#{Hyperlapse::API_HOST}#{Hyperlapse::API_MAPS_PATH}
-        ?center=#{waypoint[:lat].to_s},#{waypoint[:long].to_s}
+        ?center=#{waypoint[:lat]},#{waypoint[:long]}
         &zoom=9
         &size=640x360
         &maptype=roadmap
         &markers=color:red
         %7Clabel:R
-        %7C#{waypoint[:lat].to_s},#{waypoint[:long].to_s}
+        %7C#{waypoint[:lat]},#{waypoint[:long]}
         &key=#{Hyperlapse::API_KEY}
       END
 

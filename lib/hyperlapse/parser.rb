@@ -1,3 +1,4 @@
+# frozen_string_literal: false
 require 'digest'
 require 'json'
 
@@ -18,9 +19,7 @@ module Hyperlapse
     }x
 
     def initialize(files)
-      error unless files.is_a?(Array) && !files.empty? && files.map do |f|
-        File.file?(f) && File.readlines(f)[1] =~ /^<kml.*>$/
-      end.all?
+      error unless files_ok?(files)
 
       @coords = []
 
@@ -36,10 +35,16 @@ module Hyperlapse
 
     private
 
+    def files_ok?(files)
+      files.is_a?(Array) && !files.empty? && files.map do |f|
+        File.file?(f) && File.readlines(f)[1] =~ /^<kml.*>$/
+      end.all?
+    end
+
     def determine_from_to(files)
       first_file = IO.binread(files[0])
       last_file = IO.binread(files[-1])
-      
+
       @from = first_file.scan(NAMES_PATTERN).flatten[0]
       @to = last_file.scan(NAMES_PATTERN).flatten[-1]
 
@@ -52,9 +57,9 @@ module Hyperlapse
       paths = kml.scan(COORDS_PATTERN).flatten
 
       paths.each do |path|
-        coords = path.split(' ').map { |coords| coords.split(',')[0..1] }
-        coords.each do |coordinates|
-          @coords << [:long, :lat].zip(coordinates.map(&:to_f)).to_h
+        coords = path.split(' ').map { |triplet| triplet.split(',')[0..1] }
+        coords.each do |pair|
+          @coords << [:long, :lat].zip(pair.map(&:to_f)).to_h
         end
       end
     end
@@ -73,21 +78,29 @@ module Hyperlapse
     end
 
     def calculate_heading(coords, next_coords)
-      lat1, lat2, long1, long2 = [
+      lat1, lat2, long1, long2 = parse_coords(coords, next_coords)
+      x, y = calculate_heading_args(lat1, lat2, long1, long2)
+
+      Math.atan2(y, x).to_deg.normalize
+    end
+
+    def parse_coords(coords, next_coords)
+      [
         coords[:lat],
         next_coords[:lat],
         coords[:long],
         next_coords[:long]
       ].map(&:to_rad)
+    end
 
+    def calculate_heading_args(lat1, lat2, long1, long2)
       y = Math.sin(long2 - long1) * Math.cos(lat2)
       x = Math.cos(lat1) * Math.sin(lat2) -
           Math.sin(lat1) * Math.cos(lat2) * Math.cos(long2 - long1)
-
-      Math.atan2(y, x).to_deg.normalize
+      [x, y]
     end
 
-    def calculate_id(files)
+    def calculate_id
       command = "Digest::#{Hyperlapse::ID_ALG}.hexdigest(@coords.to_json)"
       @id = instance_eval(command)
     end

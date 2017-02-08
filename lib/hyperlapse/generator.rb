@@ -1,3 +1,4 @@
+# frozen_string_literal: false
 module Hyperlapse
   class Generator
     def initialize(config_manager)
@@ -78,9 +79,9 @@ module Hyperlapse
       command = <<~END
         ffmpeg -f image2 -framerate #{@config[:fps]} -i #{input} #{output}
       END
-      
+
       ok = system(command.chomp)
-      fail "Error generating video." unless ok
+      fail 'Error generating video.' unless ok
     end
 
     def get_files(dir)
