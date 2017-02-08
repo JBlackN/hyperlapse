@@ -10,6 +10,37 @@ module Hyperlapse
       puts 'Don\'t forget to set your Google API key (see README).'
     end
 
+    def check
+      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
+
+      app_dir_exists = Dir.exist?(Hyperlapse::APP_DIR)
+      config_file_exists = File.file?(config_file)
+
+      create unless app_dir_exists && config_file_exists
+    end
+
+    def check_api_key
+      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
+      app_config = JSON.parse(File.read(config_file))
+      !app_config['downloader']['key'].empty?
+    end
+
+    def set_api_key(key)
+      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
+      app_config = JSON.parse(File.read(config_file))
+      app_config['downloader']['key'] = key
+
+      save(app_config, config_file)
+    end
+
+    def load(category, key)
+      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
+      app_config = JSON.parse(File.read(config_file))
+      app_config[category][key]
+    end
+
+    private_class_method
+
     def create_app_dir
       Dir.mkdir(Hyperlapse::APP_DIR) unless Dir.exist?(Hyperlapse::APP_DIR)
     end
@@ -49,35 +80,6 @@ module Hyperlapse
 
     def default_config_parser
       { id_alg: 'SHA512' }
-    end
-
-    def check
-      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
-
-      app_dir_exists = Dir.exist?(Hyperlapse::APP_DIR)
-      config_file_exists = File.file?(config_file)
-
-      create unless app_dir_exists && config_file_exists
-    end
-
-    def check_api_key
-      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
-      app_config = JSON.parse(File.read(config_file))
-      !app_config['downloader']['key'].empty?
-    end
-
-    def set_api_key(key)
-      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
-      app_config = JSON.parse(File.read(config_file))
-      app_config['downloader']['key'] = key
-
-      save(app_config, config_file)
-    end
-
-    def load(category, key)
-      config_file = File.join(Hyperlapse::APP_DIR, 'config.json')
-      app_config = JSON.parse(File.read(config_file))
-      app_config[category][key]
     end
 
     def save(app_config, config_file)
