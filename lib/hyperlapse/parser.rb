@@ -26,7 +26,7 @@ module Hyperlapse
       determine_from_to(files)
       files.each { |file| parse(file) }
       calculate_headings
-      calculate_id(files)
+      calculate_id
     end
 
     def to_h

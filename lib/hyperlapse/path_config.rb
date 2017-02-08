@@ -49,6 +49,7 @@ module Hyperlapse
       path[:limit] = Hyperlapse::API_LIMIT
       path[:step] = (path[:waypoints].length - 1) / (path[:limit] - 1).to_f
       path[:step] = [path[:step], 1.0].max
+      path
     end
 
     def create_path_dir(path)
