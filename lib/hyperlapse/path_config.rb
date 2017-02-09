@@ -151,8 +151,12 @@ module Hyperlapse
 
       puts
       puts header
-      header.chomp.length.times { print '=' }
+      print_separator(header.chomp.length)
       puts
+    end
+
+    def print_separator(n)
+      n.times { print '=' }
     end
 
     def print_content
