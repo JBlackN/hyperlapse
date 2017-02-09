@@ -9,9 +9,9 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Petr Schmied"]
   spec.email         = ["schmipe5@fit.cvut.cz"]
 
-  spec.summary       = %q{Summary.}
-  spec.description   = %q{Description.}
-  spec.homepage      = "http://localhost"
+  spec.summary       = %q{Generates hyperlapse from Google My Maps paths.}
+  spec.description   = %q{Generates hyperlapse from Google My Maps paths using Google Street View.}
+  spec.homepage      = "https://gitlab.com/JBlackN/hyperlapse"
   spec.license       = "MIT"
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
@@ -35,4 +35,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.14"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "rspec", "~> 3.0"
+
+  spec.post_install_message = 'Don\'t forget to set your API key. You can'\
+                              ' use `hyperlapse config --api-key KEY`. See'\
+                              ' README for more information.'
 end
