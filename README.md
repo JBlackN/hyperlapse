@@ -4,6 +4,11 @@
 
 [Hyperlapse](https://en.wikipedia.org/wiki/Hyperlapse) video generator for Google Maps routes using Google StreetView.
 
+## Dependencies
+
+- [ImageMagick](https://www.imagemagick.org/script/index.php)
+- [FFmpeg](https://www.ffmpeg.org/)
+
 ## Local installation
 
 ```bash
