@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 require 'digest'
 require 'json'
+require 'nokogiri'
 
 module Hyperlapse
   class Parser
@@ -9,13 +10,6 @@ module Hyperlapse
       .*<name>(.+)<\/name>.*\r?\n
       (?:.*\r?\n)?
       .*<Point>
-    }x
-
-    COORDS_PATTERN = %r{
-      <LineString>.*\r?\n
-      .*\r?\n
-      .*<coordinates>(.+)<\/coordinates>\r?\n
-      .*<\/LineString>
     }x
 
     def initialize(files)
@@ -53,14 +47,14 @@ module Hyperlapse
     end
 
     def parse(file)
-      kml = IO.binread(file)
-      paths = kml.scan(COORDS_PATTERN).flatten
+      kml = Nokogiri::XML(File.open(file))
+      coords = kml.xpath('//kml:LineString/kml:coordinates',
+                         'kml' => 'http://www.opengis.net/kml/2.2'
+                        ).text.split
 
-      paths.each do |path|
-        coords = path.split(' ').map { |triplet| triplet.split(',')[0..1] }
-        coords.each do |pair|
-          @coords << [:long, :lat].zip(pair.map(&:to_f)).to_h
-        end
+      coords.each do |triplet|
+        pair = triplet.split(',')[0..1]
+        @coords << [:long, :lat].zip(pair.map(&:to_f)).to_h
       end
     end
 
