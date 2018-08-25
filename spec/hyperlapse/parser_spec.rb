@@ -20,15 +20,7 @@ describe Hyperlapse::Parser do
       .*<Point>
     }x
 
-    coords_pattern = %r{
-      <LineString>.*\r?\n
-      .*\r?\n
-      .*<coordinates>(.+)<\/coordinates>\r?\n
-      .*<\/LineString>
-    }x
-
     expect(Hyperlapse::Parser::NAMES_PATTERN).to eq(names_pattern)
-    expect(Hyperlapse::Parser::COORDS_PATTERN).to eq(coords_pattern)
   end
 
   context 'handles headings correctly' do
